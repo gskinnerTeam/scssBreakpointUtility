@@ -27,267 +27,264 @@
 
 
 
-//*******************************************
-//
-//	BREAKPOINT UTILITY
-//
-//	Description
-//	- Builds a media query based on aspect-ratio '$r', width '$w', and pixel density '$pd'
-// 	(Properties that describe shape and scale)
-//	- Accepts optional boolean parameter '$d' to specify usage of aspect-ratio (viewport) or device-aspect-ratio
-//	- Is capable of creating min-, max-, and specific range media queries
-//
-//	Contents
-//	1) SETTINGS
-//	2) UTILITY
-//
-//*******************************************
+/******************************************
+
+	BREAKPOINT UTILITY: gBootstrap
+
+	DESCRIPTION
+	Compiles media query strings based on
+	individual properties or arrays of properties
+	that define a content breakpoint.
+
+	CONTENTS
+	Debug Flag
+	Instructions
+	Mixin
+
+*******************************************/
 
 
 
-//*******************************************
-//
-//	BREAKPOINT SETTINGS
-//	- Settings and Configurations
-//
-//*******************************************
-// Sample Configuration
-// $small: 640px;
-// $medium: 1024px;
-// $large: 1600px;
-// $square_s: "3/4", $small;
-// $square_m: "3/4", $medium;
-// $square_l: "3/4", $large;
-// $landscape_s: "4/3", $small;
-// $landscape_m: "4/3", $medium;
-// $landscape_l: "4/3", $large;
-// USAGE: @include bp($landscape_s...) { @content };
+/*******************************************
+
+	DEBUG FLAG
+ 	When set to true this will output error
+ 	messaging when the scss is compiled.
+
+*******************************************/
+$debug_breakpointUtility: false;
 
 
 
-//*******************************************
-//
-//	BREAKPOINT UTILITY
-//
-//	PARAMETERS:
-//	$r 	= Apect Ratio (Must be fraction e.g. 1/1)
-//	$w 	= Width
-//	$pd = Pixel Density
-//	$d 	= Device (boolean) (determines $r type, device-aspect-ratio (screen size) OR aspect-ratio (view size) )
-//
-//	USAGE:
-//	Single Minimums
-//	a) @include bp(landscape); // Orientation
-//	b) @include bp("1/1"); 		// Aspect Ratio
-//	c) @include bp($w: 800px); 	// Width
-//	d) @include bp($pd: 1.5); 	// Pixel Density
-//
-//	Single Maximums
-//	a) @include bp($r: 0 "1/1"); 	// Aspect Ratio
-//	b) @include bp($w: 0 800px); 	// Width
-//	c) @include bp($pd: 0 1.5); 	// Pixel Density
-//
-//	Ranges
-//	a) @include bp($r: "1/1" "2/1");	// Aspect Ratio
-//	b) @include bp($w: 800px 1200px); 	// Width
-//	c) @include bp($pd: 2 3); 			// Pixel Density
-//
-//	Multiple Parameters
-//	a) @include bp(0, 0, 1.2);			// Pixel Density (zero values will not generate queries)
-//	b) @include bp("2/1", 800px);		// Aspect Ratio with min width
-//	c) @include bp("2/1", 0 800px);		// Aspect Ratio with max width
-//	d) @include bp(0, 800px 1200px, 2);	// Min width, max width, min pixel density
-//
-//	Configurations
-//	$myConfig: "2/1", 1400px, 2;
-//	@includebp($myConfig...){ @contnet } // '...' REST syntax - treats argument list as an array
-//
-//*******************************************
+/*******************************************
+
+	INSTRUCTIONS
+ 	Notes on how to use the media query utility
+
+ 	PARAMETERS
+	$r 	= Apect Ratio (Must be fraction e.g. 1/1)
+	$w 	= Width
+	$pd = Pixel Density
+	$d 	= Device (boolean) (determines $r type, device-aspect-ratio (screen size) OR aspect-ratio (view size) )
+
+	REFERENCES
+	http://www.quirksmode.org/css/mediaqueries/aspectratio.html
+	http://robandlauren.com/2014/04/03/aspect-ratio-media-queries/
+
+	SYNTAX
+	Single Parameter 'min-'
+	- @include bp("1/1"); 		// Aspect Ratio
+	- @include bp($w: 800px); 	// Width
+	- @include bp($pd: 1.5); 	// Pixel Density
+
+	Single Parameter 'max-'
+	- @include bp($r: 0 "1/1"); 	// Aspect Ratio
+	- @include bp($w: 0 800px); 	// Width
+	- @include bp($pd: 0 1.5); 	// Pixel Density
+
+	Ranges "min- to max-"
+	- @include bp($r: "1/1" "2/1");	// Aspect Ratio
+	- @include bp($w: 800px 1200px); 	// Width
+	- @include bp($pd: 2 3); 			// Pixel Density
+
+	Ranges "condition AND condition"
+	- @include bp(0, 0, 1.2);			// Pixel Density (zero values will not generate queries)
+	- @include bp("2/1", 800px);		// Aspect Ratio with min width
+	- @include bp("2/1", 0 800px);		// Aspect Ratio with max width
+	- @include bp(0, 800px 1200px, 2);	// Min width, max width, min pixel density
+
+	Project Presets "$bp-configuration"
+	- $smallTablet-landscape: landscape, 960px;
+	- @includebp($smallTablet-landscape...){ @contnet } // '...' REST syntax - treats argument list as an array
+
+*******************************************/
+
+
+
+/*******************************************
+
+	MIXIN
+ 	The logic for creating the media query
+
+*******************************************/
 @mixin bp($r:0, $w:0, $pd:0, $d:false) {
 
-
-	// TESTING ONLY
-	//*******************************************
+	/*	FOR TESTING AND DEBUGGING ONLY
+	*******************************************/
 	// $r: "1/1" "2/1";
 	// $w: 340px 800px;
 	// $pd: 2 3;
 	// $d: false; (false = "aspect-ratio", true = "device-aspect-ratio")
-
-
-	// STORE PARAMS
-	//*******************************************
 	$myParams: "#{$r}, #{$w}, #{$pd}";
 
+	/*	VARIABLE DECLARATIONS
+	*******************************************/
+	$bp_r-max: false !global;
+	$bp_w-max: false !global;
+	$bp_pd-max: false !global;
+	$bp_ratio: false !global;
+	$bp_width: false !global;
+	$bp_pd: false !global;
 
-	// SPECIFY UNDEFINED VARS
-	//*******************************************
-	$bp_r-max: false;
-	$bp_w-max: false;
-	$bp_pd-max: false;
-	$bp_ratio: false;
-	$bp_width: false;
-	$bp_pd: false;
+	/*	SET MIN AND MAX RANGES
+	*******************************************/
+	// Min Values are defined by default
+	$bp_r-min: nth($r, 1) !global;
+	$bp_w-min: nth($w, 1) !global;
+	$bp_pd-min: nth($pd, 1) !global;
 
+	// Max values are only defined
+	@if length($r) > 1 { $bp_r-max: nth($r, 2) !global; }
+	@if length($w) > 1 { $bp_w-max: nth($w, 2) !global; }
+	@if length($pd) > 1 { $bp_pd-max: nth($pd, 2) !global; }
 
-	// DEFINE RANGE VALUES
-	//*******************************************
-	// Min Values
-	$bp_r-min: nth($r, 1);
-	$bp_w-min: nth($w, 1);
-	$bp_pd-min: nth($pd, 1);
-	// Max values
-	@if length($r) > 1 { $bp_r-max: nth($r, 2); }
-	@if length($w) > 1 { $bp_w-max: nth($w, 2); }
-	@if length($pd) > 1 { $bp_pd-max: nth($pd, 2); }
-
-
-	// ASPECT RATIO
-	//*******************************************
+	/*	DETERMINE ORIENTATION/ASPECT RATIO
+	*******************************************/
 	// Determine if we are using orientation
 	@if ($r == "landscape") or ($r == "portrait") {
-		
-		$bp_ratio: "(orientation: #{$r})";	
-	
+		$bp_ratio: "(orientation: #{$r})" !global;
+		// Debug
+		@if ($debug_breakpointUtility == true ) {
+			@error "@mixin bp(#{$myParams}) - orientation query is #{$r}";
+		}
 	} @else {
-
 		// Determine ratio query type (aspect-ratio or device-aspect-ratio)
-		$rType: "aspect-ratio"; // Defaults to aspect-ratio
-		@if $d == true { $rType: "device-aspect-ratio"; }
-
+		$rType: "aspect-ratio" !global; // Defaults to aspect-ratio
+		@if $d == true { $rType: "device-aspect-ratio" !global; }
 		// Determine if we have a range
 		@if ($bp_r-max != false) {
-
 			// We have a max value
 			@if ($bp_r-min == 0) {
-				$bp_ratio: "(max-#{$rType}: #{$bp_r-max})"; // We need to set a max 
+				$bp_ratio: "(max-#{$rType}: #{$bp_r-max})" !global; // We need to set a max
 			} @else {
-				$bp_ratio: "(min-#{$rType}: #{$bp_r-min}) and (max-#{$rType}: #{$bp_r-max})"; // We need to set a range
+				$bp_ratio: "(min-#{$rType}: #{$bp_r-min}) and (max-#{$rType}: #{$bp_r-max})" !global; // We need to set a range
 			}
-
 		} @else {
-
 			// We only have a min value
 			@if ($bp_r-min == 0) {
-				$bp_ratio: false; // We don't have a valid min value
+				$bp_ratio: false !global; // We don't have a valid min value
 			} @else {
-				$bp_ratio: "(min-#{$rType}: #{$bp_r-min})"; // We need to set a min
+				$bp_ratio: "(min-#{$rType}: #{$bp_r-min})" !global; // We need to set a min
 			}
-
 		}
-
+	}
+	// Debug
+	@if ($debug_breakpointUtility == true ) {	
+		@error "@mixin bp(#{$myParams}) - ratio query is #{$bp_ratio}";
 	}
 
-	// Testing Only
-	// @warn "@mixin bp(#{$myParams}) - ratio query is #{$bp_ratio}";
-
-
-	// WIDTH
-	//*******************************************
+	/*	DETERMINE WIDTH
+	*******************************************/
 	// Determine if we have a range
 	@if ($bp_w-max != false) {
-
 		// We have a max value
 		@if ($bp_w-min == 0) {
-			$bp_width: "(max-width: #{$bp_w-max})"; // We need to set a max 
+			$bp_width: "(max-width: #{$bp_w-max})" !global; // We need to set a max
 		} @else {
-			$bp_width: "(min-width: #{$bp_w-min}) and (max-width: #{$bp_w-max})"; // We need to set a range
+			$bp_width: "(min-width: #{$bp_w-min}) and (max-width: #{$bp_w-max})" !global; // We need to set a range
 		}
-
 	} @else {
-
 		// We only have a min value
 		@if ($bp_w-min == 0) {
-			$bp_width: false; // We don't have a valid min value
+			$bp_width: false !global; // We don't have a valid min value
 		} @else {
-			$bp_width: "(min-width: #{$bp_w-min})"; // We need to set a min
+			$bp_width: "(min-width: #{$bp_w-min})" !global; // We need to set a min
 		}
-
+	}
+	// Debug
+	@if ($debug_breakpointUtility == true ) {
+		@error "@mixin bp(#{$myParams}) - width query is  #{$bp_width}";
 	}
 
-	// Testing Only
-	// @warn "@mixin bp(#{$myParams}) - width query is  #{$bp_width}";
-
-
-	// PIXEL DENSITY
-	//*******************************************
+	/*	DETERMINE PIXEL DENSITY
+	*******************************************/
 	// Determine if we have a range
 	@if ($bp_pd-max != false) {
 
 		// We have a max value
 		@if ($bp_pd-min == 0) {
-			// We need to set a max 
+			// We need to set a max
 			$dppx: $bp_pd-max + "dppx";
-			$bp_pd: "(max-device-pixel-ratio: #{$bp_pd-min}), (max-resolution: #{$dppx})";			
+			$bp_pd: "(-webkit-min-device-pixel-ratio: #{$bp_pd-max})",
+			"(-max--moz-device-pixel-ratio: #{$bp_pd-max})",
+			"(-o-max-device-pixel-ratio: #{$bp_pd-max})",
+			"(max-device-pixel-ratio: #{$bp_pd-max})",
+			"(max-resolution: 500dpi)",
+			"(max-resolution: #{$dppx})";
 		} @else {
 			// We need to set a range
 			$dppx_1: $bp_pd-min + "dppx";
 			$dppx_2: $bp_pd-max + "dppx";
-			$bp_pd: "(-webkit-min-device-pixel-ratio: #{$bp_pd-min}),
-			(min--moz-min-device-pixel-ratio: #{$bp_pd-min}),
-			(-o-min-device-pixel-ratio: #{$bp_pd-min}),
-			(min-device-pixel-ratio: #{$bp_pd-min}),
-			(min-resolution: #{$dppx_1})
-			and
-			(-webkit-max-device-pixel-ratio: #{$bp_pd-max}),
-			(max--moz-max-device-pixel-ratio: #{$bp_pd-max}),
-			(-o-max-device-pixel-ratio: #{$bp_pd-max}),
-			(max-device-pixel-ratio: #{$bp_pd-max}),
-			(max-resolution: #{$dppx_2})";			
+			$bp_pd: "(-webkit-min-device-pixel-ratio: #{$bp_pd-min}) and (-webkit-max-device-pixel-ratio: #{$bp_pd-max})",
+			"(min--moz-min-device-pixel-ratio: #{$bp_pd-min}) and (max--moz-max-device-pixel-ratio: #{$bp_pd-max})",
+			"(-o-min-device-pixel-ratio: #{$bp_pd-min}) and (-o-max-device-pixel-ratio: #{$bp_pd-max})",
+			"(min-device-pixel-ratio: #{$bp_pd-min}) and (max-device-pixel-ratio: #{$bp_pd-max})",
+			"(min-resolution: #{$dppx_1} and (max-resolution: #{$dppx_2})";
 		}
-
 	} @else {
-
 		// We only have a min value
 		@if ($bp_pd-min == 0) {
-			$bp_pd: false; // We don't have a valid min value
+			$bp_pd: false !global; // We don't have a valid min value
 		} @else {
 			// We need to set a min
 			$dppx: $bp_pd-min + "dppx";
-			$bp_pd: "(-webkit-min-device-pixel-ratio: #{$bp_pd-min}),
-			(min--moz-min-device-pixel-ratio: #{$bp_pd-min}),
-			(-o-min-device-pixel-ratio: #{$bp_pd-min}),
-			(min-device-pixel-ratio: #{$bp_pd-min}),
-			(min-resolution: #{$dppx})";			
+			$bp_pd: "(-webkit-min-device-pixel-ratio: #{$bp_pd-min})",
+			"(min--moz-min-device-pixel-ratio: #{$bp_pd-min})",
+			"(-o-min-device-pixel-ratio: #{$bp_pd-min})",
+			"(min-device-pixel-ratio: #{$bp_pd-min})",
+			"(min-resolution: #{$dppx})";
 		}
 
 	}
-
-	// Testing Only
-	// @warn "@mixin bp(#{$myParams}) - pixel density query is  #{$bp_pd}";
-
-
-	// DEFINE QUERY
-	//*******************************************
-	$AND: " and ";
-	$QUERY: null;
+	// Debug
+	@if ($debug_breakpointUtility == true ) {
+		@error "@mixin bp(#{$myParams}) - pixel density query is  #{$bp_pd}";
+	}
 	
+	/*	CREATE MEDIA QUERY
+	*******************************************/
+	$AND: " and ";
+	$QUERY: null !global;
 	// Handle ratio
 	@if $bp_ratio {
-		$QUERY: $bp_ratio;
+		$QUERY: $bp_ratio !global;
 	}
-
 	// Handle Width
 	@if $bp_width {
 		@if $QUERY == null {
-			$QUERY: $bp_width; // define query
+			$QUERY: $bp_width !global; // define query
 		} @else {
-			$QUERY: $QUERY + $AND + $bp_width; // Append to existing query
+			$QUERY: $QUERY + $AND + $bp_width !global; // Append to existing query
 		}
 	}
-
 	// Handle pixel density
 	@if $bp_pd {
 		@if $QUERY == null {
-			$QUERY: $bp_pd; // define query
+			$QUERY: $bp_pd !global; // define query
 		} @else {
-			$QUERY: $QUERY + $AND + $bp_pd; // Append to existing query	
+			$BASEQUERY: "screen and " + $QUERY;
+			$QUERY: ""; // Resets the Query in order to build it with vendor prefixes for device-pixel-ratios
+			@for $i from 1 through length($bp_pd) {
+				$APPEND: $BASEQUERY + $AND + nth($bp_pd, $i); // Append to existing query
+				@if $i == 1 {
+					$QUERY: $APPEND;
+				} @else {
+					$QUERY: $QUERY + ", " + $APPEND;
+				}
+				// Debug
+				@if ($debug_breakpointUtility == true ) {
+					@error "QUERY #{$i} is #{$QUERY}";
+				}
+			}
 		}
 	}
 
-
 	// RETURN QUERY
 	//*******************************************
-	// Testing Only
-	// @warn "@mixin bp(#{$myParams}) - Query String is #{$QUERY}";
-	@media screen and #{$QUERY} { @content }
+	// Debug
+	@if ($debug_breakpointUtility == true ) {
+		@error "@mixin bp(#{$myParams}) - Query String is #{$QUERY}";
+	}
+	// Write Result
+	@media #{$QUERY} { @content }
 }
